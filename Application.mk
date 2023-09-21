@@ -96,7 +96,7 @@ endif
 ifneq ($(strip $(PROGNAME)),)
   PROGOBJ := $(MAINCOBJ) $(MAINCXXOBJ) $(MAINRUSTOBJ)
   ifneq ($(words $(PROGOBJ)), $(words $(PROGNAME)))
-    $(warning "program names $(PROGNAME) does not match mainsrcs $(PROGOBJ)")
+    $(error "program names $(PROGNAME) does not match mainsrcs $(PROGOBJ)")
   endif
   PROGLIST := $(addprefix $(BINDIR)$(DELIM),$(PROGNAME))
   REGLIST := $(addprefix $(BUILTIN_REGISTRY)$(DELIM),$(addsuffix .bdat,$(PROGNAME)))
@@ -142,7 +142,7 @@ VPATH += :.
 
 # Targets follow
 
-all:: $(OBJS)
+all:: .built
 	@:
 .PHONY: clean depend distclean
 .PRECIOUS: $(BIN)
@@ -208,8 +208,12 @@ $(ZIGOBJS): %$(ZIGEXT)$(SUFFIX)$(OBJEXT): %$(ZIGEXT)
 	$(if $(and $(CONFIG_BUILD_LOADABLE), $(CELFFLAGS)), \
 		$(call ELFCOMPILEZIG, $<, $@), $(call COMPILEZIG, $<, $@))
 
-archive:
-	$(call ARCHIVE_ADD, $(call CONVERT_PATH,$(BIN)), $(OBJS))
+.built: $(OBJS)
+	$(call SPLITVARIABLE,ALL_OBJS,$(OBJS),100)
+	$(foreach BATCH, $(ALL_OBJS_TOTAL), \
+		$(shell $(call ARLOCK, $(call CONVERT_PATH,$(BIN)), $(ALL_OBJS_$(BATCH)))) \
+	)
+	$(Q) touch $@
 
 ifeq ($(BUILD_MODULE),y)
 
@@ -292,6 +296,7 @@ depend:: .depend
 	@:
 
 clean::
+	$(call DELFILE, .built)
 	$(call CLEAN)
 
 distclean:: clean
